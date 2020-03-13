@@ -56,6 +56,8 @@ garage-sign key generate --repo myimagerepo --name mytargets --type rsa
 IMPORTANT: It is critical to keep these keys offline on secure hardware. *Do not lose these keys.*
 ****
 
+include::ota-client::page$garage-sign.adoc[tags=rotate-steps]
+
 === Rotate the online keys with your new offline keys
 
 This is a four-step process:
