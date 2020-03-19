@@ -7,19 +7,19 @@ We recommend that you link:https://docs.ota.here.com/ota-client/latest/{docname}
 ====
 endif::[]
 
-
-
 xref:https://github.com/advancedtelematic/ota-tuf/tree/master/cli[garage-sign] is a tool for managing your OTA Connect software repository and securely signing software versions. It allows you to directly change, sign, and upload your xref:uptane.adoc[Uptane] metadata.
 
 .Why use `garage-sign`
 ****
 `garage-sign` is useful in OTA Connect for managing the keys for signing your software. If your software image is not an OSTree image, you would need `garage-sign` to Uptane metadata.
 
-* Offline keys
+* *Offline keys*
++
 In a production environment, we recommend that you keep the keys for signing software versions offline. Therefore, the OTA Connect server will no longer sign software for you, instead they will be signed locally by your machine. This maintains the security of the software because if someone gained access to your OTA Connect account they will be able to send malicious software to your devices. However if your keys are offline, your devices will not recognise the software as it will not have the correct credentials. This is where `garage-sign` becomes useful. For non-OSTree images, the `garage-sign` tool is used to manage and rotate your keys offline as well as sign your software.
 
 
-* Local repository
+* *Local repository*
++
 A repository is a location for storing software packages. A local repository is a server that exists on your local machine such as your computer. When using the `garage-sign` tool it is important to create a local repository on your machine that contains your credentials from OTA Connect and your keys for signing metadata. With your keys existing locally on your machine, any changes you make to them will not directly affect your devices on OTA Connect. It also ensures the security of your keys in production as mentioned
 
 ****
@@ -149,15 +149,13 @@ garage-sign targets push --repo <reponame>
 ----
 
 
-
 Please refer to xref:rotating-signing-keys.adoc#_rotate_the_keys_for_root_and_targets_metadata[rotating the keys for `root` and `targets` metadata] for additional information on generating new keys.
-
 // end::rotate-steps[]
+
 
 
 === Add a new software version
 
-//In the https://connect.ota.here.com[OTA Connect Portal], you can upload ostree images to update your devices.
 
 `garage-sign` can also be used to add software packages to your repository with the command `garage-sign targets add`. The packages are downloaded by aktualizr, however `garage-sign` doesn't upload the software file. The `garage-sign targets add` commmand puts new metadata in place, hence you need to tell aktualizr where the software package can be found. This is done by uploading the file somewhere else and providing `garage-sign` with the URL of where it's available.
 
