@@ -97,6 +97,13 @@ find_package(Git)
 find_package(Asn1c REQUIRED)
 find_package(ZLIB)
 
+if(EXISTS $ENV{SDKTARGETSYSROOT})
+  include_directories($ENV{SDKTARGETSYSROOT}/usr/include)
+  set (CMAKE_TOOLCHAIN_FILE ${OECORE_NATIVE_SYSROOT}/usr/share/cmake/OEToolchainConfig.cmake CACHE STRING "Where find toolchain file")
+endif()
+link_libraries(McuUpdate OTAUpdate)
+add_definitions(-DMCU_PRESENT -DMCU_BTL)
+  
 if(NOT AKTUALIZR_VERSION)
     if (EXISTS ${PROJECT_SOURCE_DIR}/VERSION)
         file(READ ${PROJECT_SOURCE_DIR}/VERSION AKTUALIZR_VERSION)
