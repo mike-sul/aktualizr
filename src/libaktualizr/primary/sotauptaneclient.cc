@@ -1286,28 +1286,30 @@ std::future<data::ResultCode::Numeric> SotaUptaneClient::sendFirmwareAsync(Uptan
     sendEvent<event::InstallStarted>(secondary.getSerial());
     report_queue->enqueue(std_::make_unique<EcuInstallationStartedReport>(secondary.getSerial(), correlation_id));
 
-    std::string data_to_send;
-    bool send_firmware_result = false;
+    //    std::string data_to_send;
+    //    bool send_firmware_result = false;
 
-    if (target.IsOstree()) {
-      // empty firmware means OSTree secondaries: pack credentials instead
-      data_to_send = secondaryTreehubCredentials();
-    } else {
-      std::stringstream sstr;
-      sstr << *storage->openTargetFile(target);
-      data_to_send = sstr.str();
-    }
+    //    if (target.IsOstree()) {
+    //      // empty firmware means OSTree secondaries: pack credentials instead
+    //      data_to_send = secondaryTreehubCredentials();
+    //    } else {
+    //      std::stringstream sstr;
+    //      sstr << *storage->openTargetFile(target);
+    //      data_to_send = sstr.str();
+    //    }
 
-    if (!data_to_send.empty()) {
-      //send_firmware_result = secondary.sendFirmware(data_to_send);
-    }
+    //    if (!data_to_send.empty()) {
+    //      //send_firmware_result = secondary.sendFirmware(data_to_send);
+    //    }
 
-    data::ResultCode::Numeric result =
-        send_firmware_result ? data::ResultCode::Numeric::kOk : data::ResultCode::Numeric::kInstallFailed;
+    //    data::ResultCode::Numeric result =
+    //        send_firmware_result ? data::ResultCode::Numeric::kOk : data::ResultCode::Numeric::kInstallFailed;
 
-    if (send_firmware_result) {
-      result = secondary.install(target);
-    }
+    //    if (send_firmware_result) {
+    //      result = secondary.install(target);
+    //    }
+
+    data::ResultCode::Numeric result = secondary.install(target);
 
     if (result == data::ResultCode::Numeric::kNeedCompletion) {
       report_queue->enqueue(std_::make_unique<EcuInstallationAppliedReport>(secondary.getSerial(), correlation_id));

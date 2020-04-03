@@ -215,6 +215,9 @@ class Aktualizr {
    */
   boost::signals2::connection SetSignalHandler(const SigHandler& handler);
 
+  // super hack
+  std::string GetTreehubTlsCreds() const { return uptane_client_->secondaryTreehubCredentials(); }
+
  private:
   Config config_;
 

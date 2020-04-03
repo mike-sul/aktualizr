@@ -137,7 +137,7 @@ bool IsoTpSecondary::putMetadata(const RawMetaPack& meta_pack) {
   return conn.Send(out);
 }
 
-//bool IsoTpSecondary::sendFirmware(const std::string& data) {
+// bool IsoTpSecondary::sendFirmware(const std::string& data) {
 //  size_t num_chunks = 1 + (data.length() - 1) / kChunkSize;
 
 //  if (num_chunks > 127) {
