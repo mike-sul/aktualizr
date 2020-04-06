@@ -204,6 +204,7 @@ class INvStorage {
       std::vector<std::pair<Uptane::EcuSerial, data::InstallationResult>>* results) = 0;
   virtual void storeDeviceInstallationResult(const data::InstallationResult& result, const std::string& raw_report,
                                              const std::string& correlation_id) = 0;
+  virtual bool storeDeviceInstallationRawReport(const std::string& raw_report) = 0;
   virtual bool loadDeviceInstallationResult(data::InstallationResult* result, std::string* raw_report,
                                             std::string* correlation_id) = 0;
   virtual void clearInstallationResults() = 0;

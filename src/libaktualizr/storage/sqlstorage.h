@@ -87,6 +87,7 @@ class SQLStorage : public SQLStorageBase, public INvStorage {
       std::vector<std::pair<Uptane::EcuSerial, data::InstallationResult>>* results) override;
   void storeDeviceInstallationResult(const data::InstallationResult& result, const std::string& raw_report,
                                      const std::string& correlation_id) override;
+  bool storeDeviceInstallationRawReport(const std::string& raw_report) override;
   bool loadDeviceInstallationResult(data::InstallationResult* result, std::string* raw_report,
                                     std::string* correlation_id) override;
   void saveEcuReportCounter(const Uptane::EcuSerial& ecu_serial, int64_t counter) override;
