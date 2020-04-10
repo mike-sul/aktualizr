@@ -8,8 +8,7 @@
 #include "logging/logging.h"
 #include "test_utils.h"
 
-#include "aktualizr_secondary.h"
-#include "aktualizr_secondary_factory.h"
+#include "aktualizr_secondary_ostree.h"
 #include "update_agent_ostree.h"
 #include "uptane_repo.h"
 
@@ -106,11 +105,11 @@ class AktualizrSecondaryWrapper {
     _config.storage.type = StorageType::kSqlite;
 
     _storage = INvStorage::newStorage(_config.storage);
-    _secondary = AktualizrSecondaryFactory::create(_config, _storage);
+    _secondary = std::make_shared<AktualizrSecondaryOstree>(_config, _storage);
   }
 
  public:
-  AktualizrSecondary::Ptr& operator->() { return _secondary; }
+  std::shared_ptr<AktualizrSecondaryOstree>& operator->() { return _secondary; }
 
   Uptane::Target getPendingVersion() const { return getVersion().first; }
 
@@ -120,26 +119,26 @@ class AktualizrSecondaryWrapper {
     boost::optional<Uptane::Target> current_target;
     boost::optional<Uptane::Target> pending_target;
 
-    _storage->loadInstalledVersions(_secondary->getSerial().ToString(), &current_target, &pending_target);
+    _storage->loadInstalledVersions(_secondary->serial().ToString(), &current_target, &pending_target);
 
     return std::make_pair(!pending_target ? Uptane::Target::Unknown() : *pending_target,
                           !current_target ? Uptane::Target::Unknown() : *current_target);
   }
 
-  std::string hardwareID() const { return _secondary->getHwId().ToString(); }
+  std::string hardwareID() const { return _secondary->hwID().ToString(); }
 
-  std::string serial() const { return _secondary->getSerial().ToString(); }
+  std::string serial() const { return _secondary->serial().ToString(); }
 
   void reboot() {
     boost::filesystem::remove(_storage_dir / _config.bootloader.reboot_sentinel_name);
-    _secondary = AktualizrSecondaryFactory::create(_config, _storage);
+    _secondary = std::make_shared<AktualizrSecondaryOstree>(_config, _storage);
   }
 
  private:
   TemporaryDirectory _storage_dir;
   AktualizrSecondaryConfig _config;
   std::shared_ptr<INvStorage> _storage;
-  AktualizrSecondary::Ptr _secondary;
+  std::shared_ptr<AktualizrSecondaryOstree> _secondary;
 };
 
 class UptaneRepoWrapper {
@@ -262,7 +261,7 @@ std::shared_ptr<OstreeRootfs> SecondaryOstreeTest::_sysroot{nullptr};
 
 TEST_F(SecondaryOstreeTest, fullUptaneVerificationInvalidRevision) {
   EXPECT_TRUE(_secondary->putMetadata(addTarget("invalid-revision")));
-  EXPECT_FALSE(_secondary->sendFirmware(getCredsToSend()));
+  EXPECT_NE(_secondary->downloadOstreeUpdate(getCredsToSend()), data::ResultCode::Numeric::kOk);
 }
 
 TEST_F(SecondaryOstreeTest, fullUptaneVerificationInvalidHwID) {
@@ -276,7 +275,7 @@ TEST_F(SecondaryOstreeTest, fullUptaneVerificationInvalidSerial) {
 TEST_F(SecondaryOstreeTest, verifyUpdatePositive) {
   // check the version reported in the manifest just after an initial boot
   Uptane::Manifest manifest = _secondary->getManifest();
-  EXPECT_TRUE(manifest.verifySignature(_secondary->getPublicKey()));
+  EXPECT_TRUE(manifest.verifySignature(_secondary->publicKey()));
   EXPECT_EQ(manifest.installedImageHash(), sysrootCurRevHash());
 
   // send metadata and do their full Uptane verification
@@ -285,15 +284,14 @@ TEST_F(SecondaryOstreeTest, verifyUpdatePositive) {
   // emulate reboot to make sure that we can continue with an update installation after reboot
   _secondary.reboot();
 
-  // send and install firmware
-  EXPECT_TRUE(_secondary->sendFirmware(getCredsToSend()));
-  EXPECT_EQ(_secondary->install(treehubCurRev()), data::ResultCode::Numeric::kNeedCompletion);
+  EXPECT_EQ(_secondary->downloadOstreeUpdate(getCredsToSend()), data::ResultCode::Numeric::kOk);
+  EXPECT_EQ(_secondary->install(), data::ResultCode::Numeric::kNeedCompletion);
 
   // check if the update was installed and pending
   EXPECT_TRUE(_secondary.getPendingVersion().MatchHash(treehubCurRevHash()));
   // manifest should still report the old version
   manifest = _secondary->getManifest();
-  EXPECT_TRUE(manifest.verifySignature(_secondary->getPublicKey()));
+  EXPECT_TRUE(manifest.verifySignature(_secondary->publicKey()));
   EXPECT_EQ(manifest.installedImageHash(), sysrootCurRevHash());
 
   // emulate reboot
@@ -304,7 +302,7 @@ TEST_F(SecondaryOstreeTest, verifyUpdatePositive) {
   EXPECT_FALSE(_secondary.getPendingVersion().IsValid());
   EXPECT_TRUE(_secondary.getCurrentVersion().MatchHash(treehubCurRevHash()));
   manifest = _secondary->getManifest();
-  EXPECT_TRUE(manifest.verifySignature(_secondary->getPublicKey()));
+  EXPECT_TRUE(manifest.verifySignature(_secondary->publicKey()));
   EXPECT_EQ(manifest.installedImageHash(), treehubCurRevHash());
 
   // emulate reboot
@@ -313,7 +311,7 @@ TEST_F(SecondaryOstreeTest, verifyUpdatePositive) {
   EXPECT_FALSE(_secondary.getPendingVersion().IsValid());
   EXPECT_TRUE(_secondary.getCurrentVersion().MatchHash(treehubCurRevHash()));
   manifest = _secondary->getManifest();
-  EXPECT_TRUE(manifest.verifySignature(_secondary->getPublicKey()));
+  EXPECT_TRUE(manifest.verifySignature(_secondary->publicKey()));
   EXPECT_EQ(manifest.installedImageHash(), treehubCurRevHash());
 }
 
