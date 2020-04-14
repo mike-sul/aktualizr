@@ -4,7 +4,6 @@
 #include <boost/process.hpp>
 
 #include "aktualizr_secondary_file.h"
-//#include "aktualizr_secondary_factory.h"
 #include "crypto/keymanager.h"
 #include "test_utils.h"
 #include "update_agent.h"
@@ -43,21 +42,21 @@ class AktualizrSecondaryWrapper {
 
     update_agent = std::make_shared<NiceMock<UpdateAgentMock>>(config.storage.path / "firmware.txt", "");
 
-    _secondary = std::make_shared<AktualizrSecondaryFile>(config, _storage, update_agent);
+    secondary_ = std::make_shared<AktualizrSecondaryFile>(config, _storage, update_agent);
   }
 
-  std::shared_ptr<AktualizrSecondaryFile>& operator->() { return _secondary; }
+  std::shared_ptr<AktualizrSecondaryFile>& operator->() { return secondary_; }
 
   Uptane::Target getPendingVersion() const {
     boost::optional<Uptane::Target> pending_target;
 
-    _storage->loadInstalledVersions(_secondary->serial().ToString(), nullptr, &pending_target);
+    _storage->loadInstalledVersions(secondary_->serial().ToString(), nullptr, &pending_target);
     return *pending_target;
   }
 
-  std::string hardwareID() const { return _secondary->hwID().ToString(); }
+  std::string hardwareID() const { return secondary_->hwID().ToString(); }
 
-  std::string serial() const { return _secondary->serial().ToString(); }
+  std::string serial() const { return secondary_->serial().ToString(); }
 
   boost::filesystem::path targetFilepath() const {
     return _storage_dir.Path() / AktualizrSecondaryFile::FileUpdateDefaultFile;
@@ -67,24 +66,24 @@ class AktualizrSecondaryWrapper {
 
  private:
   TemporaryDirectory _storage_dir;
-  std::shared_ptr<AktualizrSecondaryFile> _secondary;
+  std::shared_ptr<AktualizrSecondaryFile> secondary_;
   std::shared_ptr<INvStorage> _storage;
 };
 
 class UptaneRepoWrapper {
  public:
-  UptaneRepoWrapper() { _uptane_repo.generateRepo(KeyType::kED25519); }
+  UptaneRepoWrapper() { uptane_repo_.generateRepo(KeyType::kED25519); }
 
   Metadata addImageFile(const std::string& targetname, const std::string& hardware_id, const std::string& serial,
                         size_t size = 2049, bool add_and_sign_target = true, bool add_invalid_images = false,
                         size_t delta = 2) {
-    const auto image_file_path = _root_dir / targetname;
+    const auto image_file_path = root_dir_ / targetname;
     generateRandomFile(image_file_path, size);
 
-    _uptane_repo.addImage(image_file_path, targetname, hardware_id, "", Delegation());
+    uptane_repo_.addImage(image_file_path, targetname, hardware_id, "", Delegation());
     if (add_and_sign_target) {
-      _uptane_repo.addTarget(targetname, hardware_id, serial, "");
-      _uptane_repo.signTargets();
+      uptane_repo_.addTarget(targetname, hardware_id, serial, "");
+      uptane_repo_.signTargets();
     }
 
     if (add_and_sign_target && add_invalid_images) {
@@ -117,20 +116,20 @@ class UptaneRepoWrapper {
   Uptane::RawMetaPack getCurrentMetadata() const {
     Uptane::RawMetaPack metadata;
 
-    boost::filesystem::load_string_file(_director_dir / "root.json", metadata.director_root);
-    boost::filesystem::load_string_file(_director_dir / "targets.json", metadata.director_targets);
+    boost::filesystem::load_string_file(director_dir_ / "root.json", metadata.director_root);
+    boost::filesystem::load_string_file(director_dir_ / "targets.json", metadata.director_targets);
 
-    boost::filesystem::load_string_file(_imagerepo_dir / "root.json", metadata.image_root);
-    boost::filesystem::load_string_file(_imagerepo_dir / "timestamp.json", metadata.image_timestamp);
-    boost::filesystem::load_string_file(_imagerepo_dir / "snapshot.json", metadata.image_snapshot);
-    boost::filesystem::load_string_file(_imagerepo_dir / "targets.json", metadata.image_targets);
+    boost::filesystem::load_string_file(imagerepo_dir_ / "root.json", metadata.image_root);
+    boost::filesystem::load_string_file(imagerepo_dir_ / "timestamp.json", metadata.image_timestamp);
+    boost::filesystem::load_string_file(imagerepo_dir_ / "snapshot.json", metadata.image_snapshot);
+    boost::filesystem::load_string_file(imagerepo_dir_ / "targets.json", metadata.image_targets);
 
     return metadata;
   }
 
-  std::string getTargetImagePath(const std::string& targetname) const { return (_root_dir / targetname).string(); }
+  std::string getTargetImagePath(const std::string& targetname) const { return (root_dir_ / targetname).string(); }
 
-  void refreshRoot(Uptane::RepositoryType repo) { _uptane_repo.refresh(repo, Uptane::Role::Root()); }
+  void refreshRoot(Uptane::RepositoryType repo) { uptane_repo_.refresh(repo, Uptane::Role::Root()); }
 
  private:
   static void generateRandomFile(const boost::filesystem::path& filepath, size_t size) {
@@ -152,23 +151,23 @@ class UptaneRepoWrapper {
   }
 
  private:
-  TemporaryDirectory _root_dir;
-  boost::filesystem::path _director_dir{_root_dir / "repo/director"};
-  boost::filesystem::path _imagerepo_dir{_root_dir / "repo/repo"};
-  UptaneRepo _uptane_repo{_root_dir.Path(), "", ""};
-  Uptane::DirectorRepository _director_repo;
+  TemporaryDirectory root_dir_;
+  boost::filesystem::path director_dir_{root_dir_ / "repo/director"};
+  boost::filesystem::path imagerepo_dir_{root_dir_ / "repo/repo"};
+  UptaneRepo uptane_repo_{root_dir_.Path(), "", ""};
+  Uptane::DirectorRepository director_repo_;
 };
 
 class SecondaryTest : public ::testing::Test {
  protected:
-  SecondaryTest() : _update_agent(*(_secondary.update_agent)) {
-    _uptane_repo.addImageFile(_default_target, _secondary->hwID().ToString(), _secondary->serial().ToString(),
+  SecondaryTest() : update_agent_(*(secondary_.update_agent)) {
+    uptane_repo_.addImageFile(default_target_, secondary_->hwID().ToString(), secondary_->serial().ToString(),
                               target_size, true, true, inavlid_target_size_delta);
   }
 
   std::vector<Uptane::Target> getCurrentTargets() {
-    auto targets = Uptane::Targets(Utils::parseJSON(_uptane_repo.getCurrentMetadata().director_targets));
-    return targets.getTargets(_secondary->serial(), _secondary->hwID());
+    auto targets = Uptane::Targets(Utils::parseJSON(uptane_repo_.getCurrentMetadata().director_targets));
+    return targets.getTargets(secondary_->serial(), secondary_->hwID());
   }
 
   Uptane::Target getDefaultTarget() {
@@ -181,8 +180,8 @@ class SecondaryTest : public ::testing::Test {
     return Uptane::Hash(Uptane::Hash::Type::kSha256, getDefaultTarget().sha256Hash());
   }
 
-  data::ResultCode::Numeric sendImageFile(std::string target_name = _default_target) {
-    auto image_path = _uptane_repo.getTargetImagePath(target_name);
+  data::ResultCode::Numeric sendImageFile(std::string target_name = default_target_) {
+    auto image_path = uptane_repo_.getTargetImagePath(target_name);
     size_t total_size = boost::filesystem::file_size(image_path);
 
     std::ifstream file{image_path};
@@ -197,7 +196,7 @@ class SecondaryTest : public ::testing::Test {
         return data::ResultCode::Numeric::kGeneralError;
       }
 
-      auto result = _secondary->receiveData(buf, read_bytes);
+      auto result = secondary_->receiveData(buf, read_bytes);
       if (result != data::ResultCode::Numeric::kOk) {
         file.close();
         return result;
@@ -216,37 +215,37 @@ class SecondaryTest : public ::testing::Test {
   }
 
  protected:
-  static constexpr const char* const _default_target{"default-target"};
-  static constexpr const char* const _bigger_target{"default-target.bigger"};
-  static constexpr const char* const _smaller_target{"default-target.smaller"};
-  static constexpr const char* const _broken_target{"default-target.broken"};
+  static constexpr const char* const default_target_{"default-target"};
+  static constexpr const char* const bigger_target_{"default-target.bigger"};
+  static constexpr const char* const smaller_target_{"default-target.smaller"};
+  static constexpr const char* const broken_target_{"default-target.broken"};
 
   static const size_t target_size{2049};
   static const size_t inavlid_target_size_delta{2};
   static const size_t send_buffer_size{1024};
 
-  AktualizrSecondaryWrapper _secondary;
-  UptaneRepoWrapper _uptane_repo;
-  NiceMock<UpdateAgentMock>& _update_agent;
-  TemporaryDirectory _image_dir;
+  AktualizrSecondaryWrapper secondary_;
+  UptaneRepoWrapper uptane_repo_;
+  NiceMock<UpdateAgentMock>& update_agent_;
+  TemporaryDirectory image_dir_;
 };
 
 class SecondaryTestNegative : public ::testing::Test,
                               public ::testing::WithParamInterface<std::pair<Uptane::RepositoryType, Uptane::Role>> {
  public:
-  SecondaryTestNegative() : _update_agent(*(_secondary.update_agent)) {}
+  SecondaryTestNegative() : update_agent_(*(secondary_.update_agent)) {}
 
  protected:
   class MetadataInvalidator : public Metadata {
    public:
     MetadataInvalidator(const Uptane::RawMetaPack& valid_metadata, const Uptane::RepositoryType& repo,
                         const Uptane::Role& role)
-        : Metadata(valid_metadata), _repo_type(repo), _role(role) {}
+        : Metadata(valid_metadata), repo_type_(repo), role_(role) {}
 
     bool getRoleMetadata(std::string* result, const Uptane::RepositoryType& repo, const Uptane::Role& role,
                          Uptane::Version version) const override {
       auto return_val = Metadata::getRoleMetadata(result, repo, role, version);
-      if (!(_repo_type == repo && _role == role)) {
+      if (!(repo_type_ == repo && role_ == role)) {
         return return_val;
       }
       (*result)[10] = 'f';
@@ -254,17 +253,17 @@ class SecondaryTestNegative : public ::testing::Test,
     }
 
    private:
-    Uptane::RepositoryType _repo_type;
-    Uptane::Role _role;
+    Uptane::RepositoryType repo_type_;
+    Uptane::Role role_;
   };
 
   MetadataInvalidator currentMetadata() const {
-    return MetadataInvalidator(_uptane_repo.getCurrentMetadata(), GetParam().first, GetParam().second);
+    return MetadataInvalidator(uptane_repo_.getCurrentMetadata(), GetParam().first, GetParam().second);
   }
 
-  AktualizrSecondaryWrapper _secondary;
-  UptaneRepoWrapper _uptane_repo;
-  NiceMock<UpdateAgentMock>& _update_agent;
+  AktualizrSecondaryWrapper secondary_;
+  UptaneRepoWrapper uptane_repo_;
+  NiceMock<UpdateAgentMock>& update_agent_;
 };
 
 /**
@@ -274,14 +273,14 @@ class SecondaryTestNegative : public ::testing::Test,
  * see INSTANTIATE_TEST_SUITE_P for the test instantiations with concrete parameter values
  */
 // TEST_P(SecondaryTestNegative, MalformedMetadaJson) {
-//  EXPECT_FALSE(_secondary->putMetadata(currentMetadata()));
+//  EXPECT_FALSE(secondary_->putMetadata(currentMetadata()));
 
 //  EXPECT_CALL(_update_agent, download).Times(0);
 //  EXPECT_CALL(_update_agent, install).Times(0);
 
-//  EXPECT_FALSE(_secondary->sendFirmware("firmware"));
+//  EXPECT_FALSE(secondary_->sendFirmware("firmware"));
 
-//  EXPECT_NE(_secondary->install("target"), data::ResultCode::Numeric::kOk);
+//  EXPECT_NE(secondary_->install("target"), data::ResultCode::Numeric::kOk);
 //}
 
 /**
@@ -297,26 +296,26 @@ INSTANTIATE_TEST_SUITE_P(SecondaryTestMalformedMetadata, SecondaryTestNegative,
                                            std::make_pair(Uptane::RepositoryType::Image(), Uptane::Role::Targets())));
 
 TEST_F(SecondaryTest, fullUptaneVerificationPositive) {
-  EXPECT_CALL(_update_agent, receiveData)
+  EXPECT_CALL(update_agent_, receiveData)
       .Times(target_size / send_buffer_size + (target_size % send_buffer_size ? 1 : 0));
-  EXPECT_CALL(_update_agent, install).Times(1);
+  EXPECT_CALL(update_agent_, install).Times(1);
 
-  ASSERT_TRUE(_secondary->putMetadata(_uptane_repo.getCurrentMetadata()));
+  ASSERT_TRUE(secondary_->putMetadata(uptane_repo_.getCurrentMetadata()));
   ASSERT_EQ(sendImageFile(), data::ResultCode::Numeric::kOk);
-  ASSERT_EQ(_secondary->install(), data::ResultCode::Numeric::kOk);
+  ASSERT_EQ(secondary_->install(), data::ResultCode::Numeric::kOk);
 
   // check if a file was actually updated
-  ASSERT_TRUE(boost::filesystem::exists(_secondary.targetFilepath()));
+  ASSERT_TRUE(boost::filesystem::exists(secondary_.targetFilepath()));
   auto target = getDefaultTarget();
 
   // check the updated file hash
   auto target_hash = Uptane::Hash(Uptane::Hash::Type::kSha256, target.sha256Hash());
   auto target_file_hash =
-      Uptane::Hash::generate(Uptane::Hash::Type::kSha256, Utils::readFile(_secondary.targetFilepath()));
+      Uptane::Hash::generate(Uptane::Hash::Type::kSha256, Utils::readFile(secondary_.targetFilepath()));
   EXPECT_EQ(target_hash, target_file_hash);
 
   // check the secondary manifest
-  auto manifest = _secondary->getManifest();
+  auto manifest = secondary_->getManifest();
   EXPECT_EQ(manifest.installedImageHash(), target_file_hash);
   EXPECT_EQ(manifest.filepath(), target.filename());
 }
@@ -324,77 +323,77 @@ TEST_F(SecondaryTest, fullUptaneVerificationPositive) {
 TEST_F(SecondaryTest, TwoImagesAndOneTarget) {
   // two images for the same ECU, just one of them is added as a target and signed
   // default image and corresponding target has been already added, just add another image
-  _uptane_repo.addImageFile("second_image_00", _secondary->hwID().ToString(), _secondary->serial().ToString(),
+  uptane_repo_.addImageFile("second_image_00", secondary_->hwID().ToString(), secondary_->serial().ToString(),
                             target_size, false, false);
-  EXPECT_TRUE(_secondary->putMetadata(_uptane_repo.getCurrentMetadata()));
+  EXPECT_TRUE(secondary_->putMetadata(uptane_repo_.getCurrentMetadata()));
 }
 
 TEST_F(SecondaryTest, IncorrectTargetQuantity) {
   {
     // two targets for the same ECU
-    _uptane_repo.addImageFile("second_target", _secondary->hwID().ToString(), _secondary->serial().ToString());
+    uptane_repo_.addImageFile("second_target", secondary_->hwID().ToString(), secondary_->serial().ToString());
 
-    auto meta = _uptane_repo.getCurrentMetadata();
-    EXPECT_FALSE(_secondary->putMetadata(meta));
+    auto meta = uptane_repo_.getCurrentMetadata();
+    EXPECT_FALSE(secondary_->putMetadata(meta));
   }
 
   {
     // zero targets for the ECU being tested
-    auto metadata = UptaneRepoWrapper().addImageFile("mytarget", _secondary->hwID().ToString(), "non-existing-serial");
+    auto metadata = UptaneRepoWrapper().addImageFile("mytarget", secondary_->hwID().ToString(), "non-existing-serial");
 
-    EXPECT_FALSE(_secondary->putMetadata(metadata));
+    EXPECT_FALSE(secondary_->putMetadata(metadata));
   }
 
   {
     // zero targets for the ECU being tested
-    auto metadata = UptaneRepoWrapper().addImageFile("mytarget", "non-existig-hwid", _secondary->serial().ToString());
+    auto metadata = UptaneRepoWrapper().addImageFile("mytarget", "non-existig-hwid", secondary_->serial().ToString());
 
-    EXPECT_FALSE(_secondary->putMetadata(metadata));
+    EXPECT_FALSE(secondary_->putMetadata(metadata));
   }
 }
 
 TEST_F(SecondaryTest, DirectorRootVersionIncremented) {
-  _uptane_repo.refreshRoot(Uptane::RepositoryType::Director());
-  EXPECT_TRUE(_secondary->putMetadata(_uptane_repo.getCurrentMetadata()));
+  uptane_repo_.refreshRoot(Uptane::RepositoryType::Director());
+  EXPECT_TRUE(secondary_->putMetadata(uptane_repo_.getCurrentMetadata()));
 }
 
 TEST_F(SecondaryTest, ImageRootVersionIncremented) {
-  _uptane_repo.refreshRoot(Uptane::RepositoryType::Image());
-  EXPECT_TRUE(_secondary->putMetadata(_uptane_repo.getCurrentMetadata()));
+  uptane_repo_.refreshRoot(Uptane::RepositoryType::Image());
+  EXPECT_TRUE(secondary_->putMetadata(uptane_repo_.getCurrentMetadata()));
 }
 
 TEST_F(SecondaryTest, SmallerImageFileSize) {
-  EXPECT_CALL(_update_agent, receiveData)
+  EXPECT_CALL(update_agent_, receiveData)
       .Times((target_size - inavlid_target_size_delta) / send_buffer_size +
              ((target_size - inavlid_target_size_delta) % send_buffer_size ? 1 : 0));
-  EXPECT_CALL(_update_agent, install).Times(1);
+  EXPECT_CALL(update_agent_, install).Times(1);
 
-  EXPECT_TRUE(_secondary->putMetadata(_uptane_repo.getCurrentMetadata()));
+  EXPECT_TRUE(secondary_->putMetadata(uptane_repo_.getCurrentMetadata()));
 
-  EXPECT_EQ(sendImageFile(_smaller_target), data::ResultCode::Numeric::kOk);
-  EXPECT_NE(_secondary->install(), data::ResultCode::Numeric::kOk);
+  EXPECT_EQ(sendImageFile(smaller_target_), data::ResultCode::Numeric::kOk);
+  EXPECT_NE(secondary_->install(), data::ResultCode::Numeric::kOk);
 }
 
 TEST_F(SecondaryTest, BiggerImageFileSize) {
-  EXPECT_CALL(_update_agent, receiveData)
+  EXPECT_CALL(update_agent_, receiveData)
       .Times((target_size + inavlid_target_size_delta) / send_buffer_size +
              ((target_size + inavlid_target_size_delta) % send_buffer_size ? 1 : 0));
-  EXPECT_CALL(_update_agent, install).Times(1);
+  EXPECT_CALL(update_agent_, install).Times(1);
 
-  EXPECT_TRUE(_secondary->putMetadata(_uptane_repo.getCurrentMetadata()));
+  EXPECT_TRUE(secondary_->putMetadata(uptane_repo_.getCurrentMetadata()));
 
-  EXPECT_EQ(sendImageFile(_bigger_target), data::ResultCode::Numeric::kOk);
-  EXPECT_NE(_secondary->install(), data::ResultCode::Numeric::kOk);
+  EXPECT_EQ(sendImageFile(bigger_target_), data::ResultCode::Numeric::kOk);
+  EXPECT_NE(secondary_->install(), data::ResultCode::Numeric::kOk);
 }
 
 TEST_F(SecondaryTest, InvalidImageData) {
-  EXPECT_CALL(_update_agent, receiveData)
+  EXPECT_CALL(update_agent_, receiveData)
       .Times(target_size / send_buffer_size + (target_size % send_buffer_size ? 1 : 0));
-  EXPECT_CALL(_update_agent, install).Times(1);
+  EXPECT_CALL(update_agent_, install).Times(1);
 
-  EXPECT_TRUE(_secondary->putMetadata(_uptane_repo.getCurrentMetadata()));
-  EXPECT_EQ(sendImageFile(_broken_target), data::ResultCode::Numeric::kOk);
-  EXPECT_NE(_secondary->install(), data::ResultCode::Numeric::kOk);
+  EXPECT_TRUE(secondary_->putMetadata(uptane_repo_.getCurrentMetadata()));
+  EXPECT_EQ(sendImageFile(broken_target_), data::ResultCode::Numeric::kOk);
+  EXPECT_NE(secondary_->install(), data::ResultCode::Numeric::kOk);
 }
 
 int main(int argc, char** argv) {

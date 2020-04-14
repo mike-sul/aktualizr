@@ -13,12 +13,12 @@ class SecondaryMock : public MsgDispatcher {
  public:
   SecondaryMock(const Uptane::EcuSerial& serial, const Uptane::HardwareIdentifier& hdw_id, const PublicKey& pub_key,
                 const Uptane::Manifest& manifest, bool new_install_msgs = true)
-      : _serial(serial),
-        _hdw_id(hdw_id),
-        _pub_key(pub_key),
-        _manifest(manifest),
-        _image_filepath{_image_dir / "image.bin"},
-        _hasher{MultiPartHasher::create(Uptane::Hash::Type::kSha256)} {
+      : serial_(serial),
+        hdw_id_(hdw_id),
+        pub_key_(pub_key),
+        manifest_(manifest),
+        image_filepath_{image_dir_ / "image.bin"},
+        hasher_{MultiPartHasher::create(Uptane::Hash::Type::kSha256)} {
     registerBaseHandlers();
     if (new_install_msgs) {
       registerHandlersForNewRequests();
@@ -28,15 +28,15 @@ class SecondaryMock : public MsgDispatcher {
   }
 
  public:
-  const Uptane::EcuSerial& serial() const { return _serial; }
-  const Uptane::HardwareIdentifier& hwID() const { return _hdw_id; }
-  const PublicKey& publicKey() const { return _pub_key; }
-  const Uptane::Manifest& manifest() const { return _manifest; }
-  const Uptane::RawMetaPack& metadata() const { return _metapack; }
+  const Uptane::EcuSerial& serial() const { return serial_; }
+  const Uptane::HardwareIdentifier& hwID() const { return hdw_id_; }
+  const PublicKey& publicKey() const { return pub_key_; }
+  const Uptane::Manifest& manifest() const { return manifest_; }
+  const Uptane::RawMetaPack& metadata() const { return metapack_; }
 
-  Uptane::Hash getReceivedImageHash() const { return _hasher->getHash(); }
+  Uptane::Hash getReceivedImageHash() const { return hasher_->getHash(); }
 
-  size_t getReceivedImageSize() const { return boost::filesystem::file_size(_image_filepath); }
+  size_t getReceivedImageSize() const { return boost::filesystem::file_size(image_filepath_); }
 
   const std::string& getReceivedTlsCreds() const { return tls_creds_; }
 
@@ -79,10 +79,10 @@ class SecondaryMock : public MsgDispatcher {
 
     auto info_resp = out_msg.getInfoResp();
 
-    SetString(&info_resp->ecuSerial, _serial.ToString());
-    SetString(&info_resp->hwId, _hdw_id.ToString());
-    info_resp->keyType = static_cast<AKIpUptaneKeyType_t>(_pub_key.Type());
-    SetString(&info_resp->key, _pub_key.Value());
+    SetString(&info_resp->ecuSerial, serial_.ToString());
+    SetString(&info_resp->hwId, hdw_id_.ToString());
+    info_resp->keyType = static_cast<AKIpUptaneKeyType_t>(pub_key_.Type());
+    SetString(&info_resp->key, pub_key_.Value());
 
     return ReturnCode::kOk;
   }
@@ -156,15 +156,15 @@ class SecondaryMock : public MsgDispatcher {
   }
 
   bool putMetadata(const Uptane::RawMetaPack& meta_pack) {
-    _metapack = meta_pack;
+    metapack_ = meta_pack;
     return true;
   }
 
   data::ResultCode::Numeric receiveImageData(const uint8_t* data, size_t size) {
-    std::ofstream target_file(_image_filepath.c_str(), std::ofstream::out | std::ofstream::binary | std::ofstream::app);
+    std::ofstream target_file(image_filepath_.c_str(), std::ofstream::out | std::ofstream::binary | std::ofstream::app);
 
     target_file.write(reinterpret_cast<const char*>(data), size);
-    _hasher->update(data, size);
+    hasher_->update(data, size);
 
     target_file.close();
     return data::ResultCode::Numeric::kOk;
@@ -184,16 +184,16 @@ class SecondaryMock : public MsgDispatcher {
   }
 
  private:
-  const Uptane::EcuSerial _serial;
-  const Uptane::HardwareIdentifier _hdw_id;
-  const PublicKey _pub_key;
-  const Uptane::Manifest _manifest;
+  const Uptane::EcuSerial serial_;
+  const Uptane::HardwareIdentifier hdw_id_;
+  const PublicKey pub_key_;
+  const Uptane::Manifest manifest_;
 
-  Uptane::RawMetaPack _metapack;
+  Uptane::RawMetaPack metapack_;
 
-  TemporaryDirectory _image_dir;
-  boost::filesystem::path _image_filepath;
-  std::shared_ptr<MultiPartHasher> _hasher;
+  TemporaryDirectory image_dir_;
+  boost::filesystem::path image_filepath_;
+  std::shared_ptr<MultiPartHasher> hasher_;
   std::unordered_map<unsigned int, Handler> handler_map_;
   std::string tls_creds_;
   std::string received_firmware_data_;
