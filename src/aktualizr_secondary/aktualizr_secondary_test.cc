@@ -105,7 +105,7 @@ class UptaneRepoWrapper {
       std::ofstream broken_image{broken_image_file_path,
                                  std::ios_base::in | std::ios_base::out | std::ios_base::ate | std::ios_base::binary};
       unsigned char data_to_inject[]{0xFF};
-      broken_image.seekp(-sizeof(data_to_inject), std::ios_base::end);
+      broken_image.seekp(static_cast<long>(-sizeof(data_to_inject)), std::ios_base::end);
       broken_image.write(reinterpret_cast<const char*>(data_to_inject), sizeof(data_to_inject));
       broken_image.close();
     }
@@ -143,8 +143,8 @@ class UptaneRepoWrapper {
     unsigned char cur_symbol;
 
     for (unsigned int ii = 0; ii < size; ++ii) {
-      cur_symbol = symbols[rand() % sizeof(symbols)];
-      file.put(cur_symbol);
+      cur_symbol = symbols[static_cast<unsigned int>(rand()) % sizeof(symbols)];
+      file.put(static_cast<char>(cur_symbol));
     }
 
     file.close();
@@ -196,12 +196,12 @@ class SecondaryTest : public ::testing::Test {
         return data::ResultCode::Numeric::kGeneralError;
       }
 
-      auto result = secondary_->receiveData(buf, read_bytes);
+      auto result = secondary_->receiveData(buf, static_cast<size_t>(read_bytes));
       if (result != data::ResultCode::Numeric::kOk) {
         file.close();
         return result;
       }
-      read_and_send_data_size += read_bytes;
+      read_and_send_data_size += static_cast<size_t>(read_bytes);
     }
 
     file.close();
@@ -272,16 +272,14 @@ class SecondaryTestNegative : public ::testing::Test,
  *
  * see INSTANTIATE_TEST_SUITE_P for the test instantiations with concrete parameter values
  */
-// TEST_P(SecondaryTestNegative, MalformedMetadaJson) {
-//  EXPECT_FALSE(secondary_->putMetadata(currentMetadata()));
+TEST_P(SecondaryTestNegative, MalformedMetadaJson) {
+  EXPECT_FALSE(secondary_->putMetadata(currentMetadata()));
 
-//  EXPECT_CALL(_update_agent, download).Times(0);
-//  EXPECT_CALL(_update_agent, install).Times(0);
+  EXPECT_CALL(update_agent_, receiveData).Times(0);
+  EXPECT_CALL(update_agent_, install).Times(0);
 
-//  EXPECT_FALSE(secondary_->sendFirmware("firmware"));
-
-//  EXPECT_NE(secondary_->install("target"), data::ResultCode::Numeric::kOk);
-//}
+  EXPECT_NE(secondary_->install(), data::ResultCode::Numeric::kOk);
+}
 
 /**
  * Instantiates the parameterized test for each specified value of std::pair<Uptane::RepositoryType, Uptane::Role>

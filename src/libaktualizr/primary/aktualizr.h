@@ -215,8 +215,15 @@ class Aktualizr {
    */
   boost::signals2::connection SetSignalHandler(const SigHandler& handler);
 
-  // super hack
-  std::string GetTreehubTlsCreds() const { return uptane_client_->secondaryTreehubCredentials(); }
+  /**
+   * Return a CA certificate, a client certificates a private key along with a Treehub URL,
+   * so an user (e.g. some Secondary) can setup a TLS connection with Treehub and download
+   * ostree repository revision objects.
+   * The aforementioned artifacts are returned in the form of a std::string containing gzip archive
+   *
+   * @return a string containing an archive with TLS certificates/credentials for a connection to Treehub
+   */
+  std::string GetTreehubTlsCreds() const { return uptane_client_->treehubCredentials(); }
 
  private:
   Config config_;

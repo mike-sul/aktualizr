@@ -17,7 +17,7 @@
 
 namespace Primary {
 
-ManagedSecondary::ManagedSecondary(Primary::ManagedSecondaryConfig sconfig_in, ImageReader image_reader_in)
+ManagedSecondary::ManagedSecondary(Primary::ManagedSecondaryConfig sconfig_in, ImageReaderProvider image_reader_in)
     : sconfig(std::move(sconfig_in)), image_reader(std::move(image_reader_in)) {
   // TODO: FIX
   // loadMetadata(meta_pack);
@@ -142,56 +142,13 @@ bool ManagedSecondary::putRoot(const std::string &root, const bool director) {
   return true;
 }
 
-// bool ManagedSecondary::sendFirmware(const std::string &data) {
-//  std::lock_guard<std::mutex> l(install_mutex);
-
-//  if (expected_target_name.empty()) {
-//    return false;
-//  }
-//  if (!detected_attack.empty()) {
-//    return false;
-//  }
-
-//  if (data.size() > static_cast<size_t>(expected_target_length)) {
-//    detected_attack = "overflow";
-//    return false;
-//  }
-
-//  std::vector<Uptane::Hash>::const_iterator it;
-//  for (it = expected_target_hashes.begin(); it != expected_target_hashes.end(); it++) {
-//    if (it->TypeString() == "sha256") {
-//      if (boost::algorithm::to_lower_copy(boost::algorithm::hex(Crypto::sha256digest(data))) !=
-//          boost::algorithm::to_lower_copy(it->HashString())) {
-//        detected_attack = "wrong_hash";
-//        return false;
-//      }
-//    } else if (it->TypeString() == "sha512") {
-//      if (boost::algorithm::to_lower_copy(boost::algorithm::hex(Crypto::sha512digest(data))) !=
-//          boost::algorithm::to_lower_copy(it->HashString())) {
-//        detected_attack = "wrong_hash";
-//        return false;
-//      }
-//    }
-//  }
-//  detected_attack = "";
-//  const bool result = storeFirmware(expected_target_name, data);
-//  return result;
-//}
-
 data::ResultCode::Numeric ManagedSecondary::install(const Uptane::Target &target_name) {
   if (fiu_fail((std::string("secondary_install_") + getSerial().ToString()).c_str()) != 0) {
-    // consider changing this approach of the fault injection, since the current approach impacts the non-test code flow
-    // here as well as it doesn't test the installation failure on secondary from an end-to-end perspective as it
-    // injects an error on the middle of the control flow that would have happened if an installation error had happened
-    // in case of the virtual or the ip-secondary or any other secondary, e.g. add a mock secondary that returns an
-    // error to sendFirmware/install request we might consider passing the installation description message from
-    // Secondary, not just bool and/or data::ResultCode::Numeric
     return data::ResultCode::Numeric::kInstallFailed;
   }
 
   image_reader(target_name)->writeToFile(sconfig.firmware_path);
   Utils::writeFile(sconfig.target_name_path, expected_target_name);
-  sync();
   return data::ResultCode::Numeric::kOk;
 }
 

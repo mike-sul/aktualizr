@@ -137,35 +137,42 @@ bool IsoTpSecondary::putMetadata(const RawMetaPack& meta_pack) {
   return conn.Send(out);
 }
 
-// bool IsoTpSecondary::sendFirmware(const std::string& data) {
-//  size_t num_chunks = 1 + (data.length() - 1) / kChunkSize;
+data::ResultCode::Numeric install(const Target& target) {
+  (void)target;
+  // TODO: implement an image sending data by using ImageReader and IsoTpSecondary::sendFirmware
+  return data::ResultCode::Numeric::kOk;
+}
 
-//  if (num_chunks > 127) {
-//    return false;
-//  }
+bool IsoTpSecondary::sendFirmware(const std::string& data) {
+  size_t num_chunks = 1 + (data.length() - 1) / kChunkSize;
 
-//  for (size_t i = 0; i < num_chunks; ++i) {
-//    std::string out;
-//    std::string in;
-//    out += static_cast<char>(IsoTpUptaneMesType::kPutImageChunk);
-//    out += static_cast<char>(num_chunks);
-//    out += static_cast<char>(i + 1);
-//    if (i == num_chunks - 1) {
-//      out += data.substr(static_cast<size_t>(i * kChunkSize));
-//    } else {
-//      out += data.substr(static_cast<size_t>(i * kChunkSize), static_cast<size_t>(kChunkSize));
-//    }
-//    if (!conn.SendRecv(out, &in)) {
-//      return false;
-//    }
-//    if (in[0] != static_cast<char>(IsoTpUptaneMesType::kPutImageChunkAckErr)) {
-//      return false;
-//    }
+  if (num_chunks > 127) {
+    return false;
+  }
 
-//    if (in[1] != 0x00) {
-//      return false;
-//    }
-//  }
-//  return true;
-//}
+  for (size_t i = 0; i < num_chunks; ++i) {
+    std::string out;
+    std::string in;
+    out += static_cast<char>(IsoTpUptaneMesType::kPutImageChunk);
+    out += static_cast<char>(num_chunks);
+    out += static_cast<char>(i + 1);
+    if (i == num_chunks - 1) {
+      out += data.substr(static_cast<size_t>(i * kChunkSize));
+    } else {
+      out += data.substr(static_cast<size_t>(i * kChunkSize), static_cast<size_t>(kChunkSize));
+    }
+    if (!conn.SendRecv(out, &in)) {
+      return false;
+    }
+    if (in[0] != static_cast<char>(IsoTpUptaneMesType::kPutImageChunkAckErr)) {
+      return false;
+    }
+
+    if (in[1] != 0x00) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace Uptane

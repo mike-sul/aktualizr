@@ -224,7 +224,7 @@ AktualizrSecondary::ReturnCode AktualizrSecondary::getManifestHdlr(Asn1Message& 
   out_msg.present(AKIpUptaneMes_PR_manifestResp);
   auto manifest_resp = out_msg.manifestResp();
   manifest_resp->manifest.present = manifest_PR_json;
-  SetString(&manifest_resp->manifest.choice.json, Utils::jsonToStr(getManifest()));
+  SetString(&manifest_resp->manifest.choice.json, Utils::jsonToStr(getManifest()));  // NOLINT
 
   LOG_TRACE << "Manifest : \n" << getManifest();
   return ReturnCode::kOk;
@@ -262,32 +262,6 @@ AktualizrSecondary::ReturnCode AktualizrSecondary::putMetaHdlr(Asn1Message& in_m
 
   return ReturnCode::kOk;
 }
-
-// MsgDispatcher::HandleStatusCode AktualizrSecondary::MsgDispatcher::sendFirmwareHdlr(Asn1Message& in_msg,
-//                                                                                  Asn1Message& out_msg) {
-//  auto fw = in_msg.sendFirmwareReq();
-//  auto send_firmware_result = secondary_.sendFirmware(ToString(in_msg.sendFirmwareReq()->firmware));
-
-//  out_msg.present(AKIpUptaneMes_PR_sendFirmwareResp).sendFirmwareResp()->result =
-//      send_firmware_result ? AKInstallationResult_success : AKInstallationResult_failure;
-//  ;
-
-//  return HandleStatusCode::kOk;
-//}
-
-// MsgDispatcher::HandleStatusCode AktualizrSecondary::MsgDispatcher::sendFirmwareDataHdlr(Asn1Message& in_msg,
-//                                                                                      Asn1Message& out_msg) {
-//  auto fw = in_msg.sendFirmwareDataReq();
-
-//  auto send_firmware_result =
-//      secondary_.sendFirmware(in_msg.sendFirmwareDataReq()->data.buf, in_msg.sendFirmwareDataReq()->data.size);
-
-//  out_msg.present(AKIpUptaneMes_PR_sendFirmwareResp).sendFirmwareResp()->result =
-//      (send_firmware_result == data::ResultCode::Numeric::kOk) ? AKInstallationResult_success
-//                                                               : AKInstallationResult_failure;
-
-//  return HandleStatusCode::kOk;
-//}
 
 AktualizrSecondary::ReturnCode AktualizrSecondary::installHdlr(Asn1Message& in_msg, Asn1Message& out_msg) {
   (void)in_msg;

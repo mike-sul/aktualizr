@@ -1,4 +1,5 @@
 #include "update_agent_file.h"
+#include <fstream>
 #include "crypto/crypto.h"
 #include "logging/logging.h"
 #include "uptane/manifest.h"
@@ -22,29 +23,6 @@ bool FileUpdateAgent::getInstalledImageInfo(Uptane::InstalledImageInfo& installe
 
   return true;
 }
-
-// bool FileUpdateAgent::download(const Uptane::Target& target, const std::string& data) {
-//  Utils::writeFile(new_target_filepath_, data);
-//  auto received_target_image_size = boost::filesystem::file_size(new_target_filepath_);
-//  if (received_target_image_size != target.length()) {
-//    LOG_ERROR << "Received target image size does not match the size specified in metadata: "
-//              << received_target_image_size << " != " << target.length();
-//    boost::filesystem::remove(new_target_filepath_);
-//    return false;
-//  }
-
-//  new_target_hasher_ = MultiPartHasher::create(getTargetHash(target).type());
-
-//  new_target_hasher_->update(reinterpret_cast<const unsigned char*>(data.c_str()), data.length());
-
-//  if (!target.MatchHash(new_target_hasher_->getHash())) {
-//    LOG_ERROR << "The received target image hash does not match the hash specified in metadata: "
-//              << new_target_hasher_->getHash() << " != " << getTargetHash(target).HashString();
-//    return false;
-//  }
-
-//  return true;
-//}
 
 data::ResultCode::Numeric FileUpdateAgent::install(const Uptane::Target& target) {
   if (!boost::filesystem::exists(new_target_filepath_)) {
@@ -117,7 +95,7 @@ data::ResultCode::Numeric FileUpdateAgent::receiveData(const Uptane::Target& tar
     new_target_hasher_ = MultiPartHasher::create(getTargetHash(target).type());
   }
 
-  target_file.write(reinterpret_cast<const char*>(data), size);
+  target_file.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
   auto written_data_size = target_file.tellp() - current_new_image_size;
 
   if (written_data_size < 0 || static_cast<size_t>(written_data_size) != size) {
@@ -129,12 +107,17 @@ data::ResultCode::Numeric FileUpdateAgent::receiveData(const Uptane::Target& tar
 
   target_file.close();
 
+  LOG_INFO << "Received and stored data of a new target image;"
+              " received in this request (bytes): "
+           << size << " total received so far: " << (current_new_image_size + written_data_size)
+           << " expected total: " << target.length();
+
   new_target_hasher_->update(data, size);
 
   return data::ResultCode::Numeric::kOk;
 }
 
 Uptane::Hash FileUpdateAgent::getTargetHash(const Uptane::Target& target) {
-  // TODO check target.hashes() size
+  // TODO check target.hashes() size, https://saeljira.it.here.com/browse/OTA-4831
   return target.hashes()[0];
 }

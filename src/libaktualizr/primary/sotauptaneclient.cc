@@ -1361,7 +1361,7 @@ std::vector<result::Install::EcuReport> SotaUptaneClient::sendImagesToEcus(const
   return reports;
 }
 
-std::string SotaUptaneClient::secondaryTreehubCredentials() const {
+std::string SotaUptaneClient::treehubCredentials() const {
   if (config.tls.pkey_source != CryptoSource::kFile || config.tls.cert_source != CryptoSource::kFile ||
       config.tls.ca_source != CryptoSource::kFile) {
     LOG_ERROR << "Cannot send OSTree update to a secondary when not using file as credential sources";
