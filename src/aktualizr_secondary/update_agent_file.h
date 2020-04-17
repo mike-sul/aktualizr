@@ -21,7 +21,7 @@ class FileUpdateAgent : public UpdateAgent {
   data::InstallationResult applyPendingInstall(const Uptane::Target& target) override;
 
  private:
-  static Uptane::Hash getTargetHash(const Uptane::Target& target);
+  static Hash getTargetHash(const Uptane::Target& target);
 
  private:
   const boost::filesystem::path target_filepath_;

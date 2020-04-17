@@ -117,7 +117,7 @@ data::ResultCode::Numeric FileUpdateAgent::receiveData(const Uptane::Target& tar
   return data::ResultCode::Numeric::kOk;
 }
 
-Uptane::Hash FileUpdateAgent::getTargetHash(const Uptane::Target& target) {
+Hash FileUpdateAgent::getTargetHash(const Uptane::Target& target) {
   // TODO check target.hashes() size, https://saeljira.it.here.com/browse/OTA-4831
   return target.hashes()[0];
 }

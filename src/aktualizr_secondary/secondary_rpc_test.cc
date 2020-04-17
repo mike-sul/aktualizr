@@ -18,7 +18,7 @@ class SecondaryMock : public MsgDispatcher {
         pub_key_(pub_key),
         manifest_(manifest),
         image_filepath_{image_dir_ / "image.bin"},
-        hasher_{MultiPartHasher::create(Uptane::Hash::Type::kSha256)} {
+        hasher_{MultiPartHasher::create(Hash::Type::kSha256)} {
     registerBaseHandlers();
     if (new_install_msgs) {
       registerHandlersForNewRequests();
@@ -34,15 +34,13 @@ class SecondaryMock : public MsgDispatcher {
   const Uptane::Manifest& manifest() const { return manifest_; }
   const Uptane::RawMetaPack& metadata() const { return metapack_; }
 
-  Uptane::Hash getReceivedImageHash() const { return hasher_->getHash(); }
+  Hash getReceivedImageHash() const { return hasher_->getHash(); }
 
   size_t getReceivedImageSize() const { return boost::filesystem::file_size(image_filepath_); }
 
   const std::string& getReceivedTlsCreds() const { return tls_creds_; }
 
-  Uptane::Hash getReceivedTlsCredsHash() const {
-    return Uptane::Hash::generate(Uptane::Hash::Type::kSha256, tls_creds_);
-  }
+  Hash getReceivedTlsCredsHash() const { return Hash::generate(Hash::Type::kSha256, tls_creds_); }
 
   void registerHandlersForNewRequests() {
     registerHandler(AKIpUptaneMes_PR_uploadDataReq,
@@ -213,13 +211,13 @@ bool operator==(const Uptane::RawMetaPack& lhs, const Uptane::RawMetaPack& rhs) 
 
 class TargetFile {
  public:
-  TargetFile(const std::string filename, size_t size = 1024, Uptane::Hash::Type hash_type = Uptane::Hash::Type::kSha256)
+  TargetFile(const std::string filename, size_t size = 1024, Hash::Type hash_type = Hash::Type::kSha256)
       : image_size_{size},
         image_filepath_{target_dir_ / filename},
         image_hash_{generateRandomFile(image_filepath_, size, hash_type)} {}
 
   std::string path() const { return image_filepath_.string(); }
-  const Uptane::Hash& hash() const { return image_hash_; }
+  const Hash& hash() const { return image_hash_; }
   const size_t& size() const { return image_size_; }
 
   static ImageReaderProvider getImageReader() {
@@ -256,8 +254,7 @@ class TargetFile {
     boost::filesystem::ifstream image_file_;
   };
 
-  static Uptane::Hash generateRandomFile(const boost::filesystem::path& filepath, size_t size,
-                                         Uptane::Hash::Type hash_type) {
+  static Hash generateRandomFile(const boost::filesystem::path& filepath, size_t size, Hash::Type hash_type) {
     auto hasher = MultiPartHasher::create(hash_type);
     std::ofstream file{filepath.string(), std::ofstream::binary};
 
@@ -282,7 +279,7 @@ class TargetFile {
   TemporaryDirectory target_dir_;
   const size_t image_size_;
   boost::filesystem::path image_filepath_;
-  Uptane::Hash image_hash_;
+  Hash image_hash_;
 };
 
 class TlsCreds : public TargetFile {

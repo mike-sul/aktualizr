@@ -475,22 +475,20 @@ KeyType Crypto::IdentifyRSAKeyType(const std::string &public_key_pem) {
   }
 }
 
-MultiPartHasher::Ptr MultiPartHasher::create(Uptane::Hash::Type hash_type) {
+MultiPartHasher::Ptr MultiPartHasher::create(Hash::Type hash_type) {
   switch (hash_type) {
-    case Uptane::Hash::Type::kSha256: {
+    case Hash::Type::kSha256: {
       return std::make_shared<MultiPartSHA256Hasher>();
     }
-    case Uptane::Hash::Type::kSha512: {
+    case Hash::Type::kSha512: {
       return std::make_shared<MultiPartSHA512Hasher>();
     }
     default: {
-      LOG_ERROR << "Unsupported type of hashing: " << Uptane::Hash::TypeString(hash_type);
+      LOG_ERROR << "Unsupported type of hashing: " << Hash::TypeString(hash_type);
       return nullptr;
     }
   }
 }
-
-namespace Uptane {
 
 Hash Hash::generate(Type type, const std::string &data) {
   std::string hash;
@@ -543,5 +541,3 @@ std::ostream &operator<<(std::ostream &os, const Hash &h) {
   os << "Hash: " << h.hash_;
   return os;
 }
-
-}  // namespace Uptane

@@ -58,7 +58,6 @@ class PublicKey {
   KeyType type_{KeyType::kUnknown};
 };
 
-namespace Uptane {
 /**
  * The hash of a file or TUF metadata.  File hashes/checksums in TUF include the length of the object, in order to
  * defeat infinite download attacks.
@@ -81,8 +80,8 @@ class Hash {
   std::string HashString() const { return hash_; }
   friend std::ostream &operator<<(std::ostream &os, const Hash &h);
 
-  static std::string encodeVector(const std::vector<Uptane::Hash> &hashes);
-  static std::vector<Uptane::Hash> decodeVector(std::string hashes_str);
+  static std::string encodeVector(const std::vector<Hash> &hashes);
+  static std::vector<Hash> decodeVector(std::string hashes_str);
 
  private:
   Type type_;
@@ -91,17 +90,15 @@ class Hash {
 
 std::ostream &operator<<(std::ostream &os, const Hash &h);
 
-}  // namespace Uptane
-
 class MultiPartHasher {
  public:
   using Ptr = std::shared_ptr<MultiPartHasher>;
-  static Ptr create(Uptane::Hash::Type hash_type);
+  static Ptr create(Hash::Type hash_type);
 
  public:
   virtual void update(const unsigned char *part, uint64_t size) = 0;
   virtual std::string getHexDigest() = 0;
-  virtual Uptane::Hash getHash() = 0;
+  virtual Hash getHash() = 0;
   virtual ~MultiPartHasher() = default;
 };
 
@@ -116,7 +113,7 @@ class MultiPartSHA512Hasher : public MultiPartHasher {
     return boost::algorithm::hex(std::string(reinterpret_cast<char *>(sha512_hash.data()), crypto_hash_sha512_BYTES));
   }
 
-  Uptane::Hash getHash() override { return Uptane::Hash(Uptane::Hash::Type::kSha512, getHexDigest()); }
+  Hash getHash() override { return Hash(Hash::Type::kSha512, getHexDigest()); }
 
  private:
   crypto_hash_sha512_state state_{};
@@ -133,7 +130,7 @@ class MultiPartSHA256Hasher : public MultiPartHasher {
     return boost::algorithm::hex(std::string(reinterpret_cast<char *>(sha256_hash.data()), crypto_hash_sha256_BYTES));
   }
 
-  Uptane::Hash getHash() override { return Uptane::Hash(Uptane::Hash::Type::kSha256, getHexDigest()); }
+  Hash getHash() override { return Hash(Hash::Type::kSha256, getHexDigest()); }
 
  private:
   crypto_hash_sha256_state state_{};
